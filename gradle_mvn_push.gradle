@@ -1,0 +1,78 @@
+apply plugin: 'com.github.dcendents.android-maven'
+
+group = getPropertyFromModuleProperties("GROUP")
+version = getPropertyFromModuleProperties("VERSION_NAME")
+project.archivesBaseName = getUploadProjectName()
+
+def getUploadProjectName(){
+    def name = project.getName()
+    if (name.startsWith("m_") || name.startsWith("l_")){
+        return name.substring(2)
+    } else {
+        return name
+    }
+}
+
+def getPropertyFromLocalProperties(key) {
+    File file = project.rootProject.file('gradle_mvn.properties')
+    if (file.exists()) {
+        Properties properties = new Properties()
+        properties.load(file.newDataInputStream())
+        return properties.getProperty(key)
+    }
+}
+
+def getPropertyFromModuleProperties(key) {
+    File file = project.file('module.properties')
+    if (file.exists()) {
+        Properties properties = new Properties()
+        properties.load(file.newDataInputStream())
+        return properties.getProperty(key)
+    }
+}
+
+def getRepositoryUrl() {
+    return isSnapshot() ? getPropertyFromLocalProperties("NEXUS_REPOSITORY_URL") : getPropertyFromLocalProperties("RELEASE_REPOSITORY_URL")
+}
+
+def isSnapshot() {
+    return version.endsWith("SNAPSHOT")
+}
+
+def hasAndroidPlugin() {
+    return getPlugins().inject(false) { a, b ->
+        def classStr = b.getClass().name
+        def isAndroid = ("com.android.build.gradle.LibraryPlugin" == classStr) || ("com.android.build.gradle.AppPlugin" == classStr)
+        a || isAndroid
+    }
+}
+
+task sourcesJar(type: Jar) {
+    if (hasAndroidPlugin()) {
+        from android.sourceSets.main.java.srcDirs
+        classifier = 'sources'
+    } else {
+        from sourceSets.main.allSource
+        classifier = 'sources'
+    }
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+uploadArchives {
+    def pluginDebug = Boolean.parseBoolean(getPropertyFromLocalProperties("LOCAL_PLUGIN_DEBUG"))
+
+    repositories.mavenDeployer {
+        if (pluginDebug){
+            repository(url: uri('../repository'))
+        } else {
+            repository(url: repositoryUrl) {
+                authentication(userName: getPropertyFromLocalProperties("NEXUS_USERNAME"),
+                        password: getPropertyFromLocalProperties("NEXUS_PASSWORD"))
+            }
+        }
+
+    }
+}
