@@ -6,7 +6,7 @@ project.archivesBaseName = getUploadProjectName()
 
 def getUploadProjectName(){
     def name = project.getName()
-    if (name.startsWith("m_") || name.startsWith("l_")){
+    if (name.startsWith("m_") || name.startsWith("l_") || name.startsWith("c_")){
         return name.substring(2)
     } else {
         return name
